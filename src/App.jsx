@@ -402,11 +402,13 @@ function NoteEditor({ note, updateNoteBody, deleteNote, onBack, mobileView, save
 
     if (event.key === ' ' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
       const range = selection.getRangeAt(0)
-      const block = element.closest('p, div')
-      const isStandaloneHyphen = block && !block.closest('li') && block.textContent === '-' && caretIsAtEnd(range, block)
+      const block = [...editor.querySelectorAll('p, div, h1, h2, h3, blockquote')].find(candidate => (
+        !candidate.closest('li') && candidate.textContent === '-' && caretIsAtEnd(range, candidate)
+      ))
+      const isStandaloneHyphen = Boolean(block)
       if (isStandaloneHyphen) {
         event.preventDefault()
-        block.textContent = ''
+        block.innerHTML = '<br>'
         range.selectNodeContents(block)
         range.collapse(true)
         selection.removeAllRanges()
