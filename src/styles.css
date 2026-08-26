@@ -49,8 +49,8 @@ button { border: 0; background: none; cursor: pointer; }
 .note-canvas ul:not(.checklist) > li::before { content: '-'; position: absolute; left: 0; }
 
 /* Keep ordinary typed lines at the editor's line height. */
-.note-canvas p, .note-canvas > div { margin: 0; }
-.note-canvas > ul, .note-canvas > ol, .note-canvas li { margin: 0; }
+.note-canvas p:not(.lead), .note-canvas div, .note-canvas li { margin: 0 !important; line-height: inherit; }
+.note-canvas > ul, .note-canvas > ol { margin: 0 !important; }
 
 .sidebar, .note-list, .note-canvas {
   scrollbar-width: thin;
