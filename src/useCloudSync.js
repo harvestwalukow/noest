@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cloudConfigured, supabase } from './supabase'
-import { starterFolders, starterNotes } from './data'
+import { starterFolders } from './data'
 
 function noteVersion(note) {
   return Number(note?.updatedAt || 0)
@@ -40,7 +40,7 @@ export function useCloudSync({ folders, notes, dark, setFolders, setNotes, setDa
         setStatus('signed-out')
         if (event === 'SIGNED_OUT') {
           setFolders(starterFolders)
-          setNotes(starterNotes)
+          setNotes([])
           setDark(false)
         }
       }

@@ -5,7 +5,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Pin, Plus, Search, Share2, Sun, Trash2,
   Underline, X, CircleUserRound, CloudOff, RefreshCw, Pencil, AlertTriangle,
 } from 'lucide-react'
-import { starterFolders, starterNotes } from './data'
+import { starterFolders } from './data'
 import { AuthDialog } from './AuthDialog'
 import { useCloudSync } from './useCloudSync'
 
@@ -354,17 +354,32 @@ function placeCaretAtStart(element) {
   selection.removeAllRanges()
   selection.addRange(range)
 }
+
 function NoteEditor({ note, updateNoteBody, deleteNote, onBack, mobileView, saveLabel }) {
   const editorRef = useRef(null)
   const selectionRef = useRef(null)
   useLayoutEffect(() => {
     const editor = editorRef.current
     if (!editor || !note) return
-    if (editor.innerHTML !== note.body) editor.innerHTML = note.body
+    const noteChanged = editor.dataset.noteId !== note.id
+    if (noteChanged || (editor.innerHTML !== note.body && document.activeElement !== editor)) {
+      editor.innerHTML = note.body
+      editor.dataset.noteId = note.id
+    }
+    if (!noteChanged) return
     editor.querySelectorAll('ul.checklist').forEach(list => setChecklist(list, true))
     editor.scrollTop = editor.scrollHeight
   }, [note?.id, note?.body])
   const save = () => editorRef.current && note && updateNoteBody(note.id, editorRef.current.innerHTML)
+  const repairAutoList = () => {
+    const list = editorRef.current?.querySelector('ul[data-auto-list="true"]')
+    const item = list?.lastElementChild
+    const next = list?.nextSibling
+    if (!list || !item || item.textContent.trim() || !next) return
+    if (next.nodeType === Node.TEXT_NODE) item.append(next)
+    else while (next.firstChild) item.append(next.firstChild)
+    list.removeAttribute('data-auto-list')
+  }
   const rememberSelection = () => {
     const selection = window.getSelection()
     if (selection?.rangeCount && editorRef.current?.contains(selection.anchorNode)) selectionRef.current = selection.getRangeAt(0).cloneRange()
@@ -376,18 +391,6 @@ function NoteEditor({ note, updateNoteBody, deleteNote, onBack, mobileView, save
     selection.removeAllRanges()
     selection.addRange(selectionRef.current)
   }
-  const focusListItem = () => {
-    const item = editorRef.current?.querySelector('ul:not(.checklist) > li:last-child')
-    if (!item) return
-    editorRef.current.focus()
-    const selection = window.getSelection()
-    const range = document.createRange()
-    range.selectNodeContents(item)
-    range.collapse(true)
-    selection.removeAllRanges()
-    selection.addRange(range)
-    selectionRef.current = range.cloneRange()
-  }
   const selectedList = () => {
     const selection = window.getSelection()
     const anchor = selection?.anchorNode
@@ -397,8 +400,31 @@ function NoteEditor({ note, updateNoteBody, deleteNote, onBack, mobileView, save
   const handleEditorKeyDown = event => {
     const editor = editorRef.current
     const selection = window.getSelection()
+    if (!editor || !selection?.rangeCount) return
+
+    const autoList = editor.querySelector('ul[data-auto-list="true"]')
+    if (autoList && !autoList.contains(selection.anchorNode)) {
+      const item = autoList.lastElementChild
+      const text = item?.firstChild
+      if (item && text) {
+        const caret = document.createRange()
+        caret.setStart(text, text.length)
+        caret.collapse(true)
+        selection.removeAllRanges()
+        selection.addRange(caret)
+        if (event.key.length === 1) {
+          event.preventDefault()
+          document.execCommand('insertText', false, event.key)
+          autoList.removeAttribute('data-auto-list')
+          save()
+          rememberSelection()
+          return
+        }
+      }
+    }
+
     const element = selectionElement(editor)
-    if (!editor || !selection?.rangeCount || !element) return
+    if (!element) return
 
     if (event.key === ' ' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
       const range = selection.getRangeAt(0)
@@ -408,24 +434,18 @@ function NoteEditor({ note, updateNoteBody, deleteNote, onBack, mobileView, save
       const isStandaloneHyphen = Boolean(block)
       if (isStandaloneHyphen) {
         event.preventDefault()
-        block.innerHTML = '<br>'
-        range.selectNodeContents(block)
-        range.collapse(true)
+        const list = document.createElement('ul')
+        list.dataset.autoList = 'true'
+        const item = document.createElement('li')
+        const text = document.createTextNode('\u00a0')
+        item.append(text)
+        list.append(item)
+        block.replaceWith(list)
+        const caret = document.createRange()
+        caret.setStart(text, 1)
+        caret.collapse(true)
         selection.removeAllRanges()
-        selection.addRange(range)
-        document.execCommand('insertUnorderedList')
-        const item = selectionElement(editor)?.closest?.('li') || editor.querySelector('ul:last-of-type > li:last-child')
-        if (item) {
-          item.textContent = ''
-          const caret = document.createRange()
-          caret.selectNodeContents(item)
-          caret.collapse(true)
-          selection.removeAllRanges()
-          selection.addRange(caret)
-        }
-        save()
-        rememberSelection()
-        requestAnimationFrame(focusListItem)
+        selection.addRange(caret)
         return
       }
     }
@@ -532,7 +552,7 @@ function NoteEditor({ note, updateNoteBody, deleteNote, onBack, mobileView, save
       <header className="editor-mobile-header"><IconButton label="Back to notes" onClick={onBack}><ChevronLeft size={22}/></IconButton><span>Notes</span><span /></header>
       <EditorToolbar command={command}/>
       <div className="note-date">{note.date === 'Today' ? 'August 11, 2026' : note.date} at {note.time}</div>
-      <div ref={editorRef} className="note-canvas" contentEditable suppressContentEditableWarning onInput={() => { save(); rememberSelection() }} onKeyDown={handleEditorKeyDown} onMouseUp={rememberSelection} onKeyUp={rememberSelection} onBlur={rememberSelection} onClick={handleChecklistClick} onPaste={handlePaste} aria-label={`Editing ${note.title}`}/>
+      <div ref={editorRef} className="note-canvas" contentEditable suppressContentEditableWarning onInput={() => { repairAutoList(); save(); rememberSelection() }} onKeyDown={handleEditorKeyDown} onMouseUp={rememberSelection} onKeyUp={rememberSelection} onBlur={() => { save(); rememberSelection() }} onClick={handleChecklistClick} onPaste={handlePaste} aria-label={`Editing ${note.title}`}/>
       <div className="editor-status"><span>{saveLabel}</span><button onClick={() => deleteNote(note.id)}><Trash2 size={15}/>Delete</button></div>
     </main>
   )
@@ -541,9 +561,9 @@ function NoteEditor({ note, updateNoteBody, deleteNote, onBack, mobileView, save
 function App() {
   const [saved] = useState(() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || localStorage.getItem('noest-state-v2')) } catch { return null } })
   const [folders, setFolders] = useState(saved?.folders || starterFolders)
-  const [notes, setNotes] = useState(saved?.notes || starterNotes)
-  const [activeFolder, setActiveFolder] = useState(saved?.activeFolder || 'travel')
-  const [selectedNote, setSelectedNote] = useState(saved?.selectedNote || 'japan-october')
+  const [notes, setNotes] = useState(() => saved?.notes?.filter(note => !['japan-october', 'kyoto', 'tokyo', 'packing', 'budget', 'books', 'recipe', 'studio', 'words'].includes(note.id)) || [])
+  const [activeFolder, setActiveFolder] = useState(saved?.activeFolder || 'notes')
+  const [selectedNote, setSelectedNote] = useState(saved?.selectedNote || null)
   const [query, setQuery] = useState('')
   const [sortMode, setSortMode] = useState('edited')
   const [listMode, setListMode] = useState('list')
@@ -554,6 +574,11 @@ function App() {
   const [showMenu, setShowMenu] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [signOutOpen, setSignOutOpen] = useState(false)
+
+  useEffect(() => {
+    const themeColor = document.querySelector('meta[name="theme-color"]')
+    if (themeColor) themeColor.setAttribute('content', dark ? '#1c1c1e' : '#f6f6f7')
+  }, [dark])
 
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify({ folders, notes, dark, activeFolder, selectedNote, mobileView })), [folders, notes, dark, activeFolder, selectedNote, mobileView])
 

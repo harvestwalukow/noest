@@ -5,6 +5,7 @@
   --paper: #ffffff; --border: #dddde0; --text: #1d1d1f; --muted: #77777e; --hover: #e8e8eb;
 }
 * { box-sizing: border-box; }
+html, body, #root { background: var(--paper); }
 body { margin: 0; min-width: 320px; min-height: 100vh; overflow: hidden; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { border: 0; background: none; cursor: pointer; }
@@ -49,6 +50,7 @@ button { border: 0; background: none; cursor: pointer; }
 
 /* Keep ordinary typed lines at the editor's line height. */
 .note-canvas p, .note-canvas > div { margin: 0; }
+.note-canvas > ul, .note-canvas > ol, .note-canvas li { margin: 0; }
 
 .sidebar, .note-list, .note-canvas {
   scrollbar-width: thin;
