@@ -44,11 +44,10 @@ button { border: 0; background: none; cursor: pointer; }
 .note-canvas:focus, .note-canvas:focus-visible { outline: none; }
 
 /* Use plain-text style hyphens for unordered notes while keeping nested ULs editable. */
-.note-canvas ul:not(.checklist) { list-style: none; }
+.note-canvas ul:not(.checklist) { list-style: none; margin: 0 !important; }
 .note-canvas ul:not(.checklist) > li { position: relative; padding-left: 1.15em; }
 .note-canvas ul:not(.checklist) > li::before { content: '-'; position: absolute; left: 0; }
-.note-canvas ul:not(.checklist) ul:not(.checklist) { padding-left: .75em; }
-.note-canvas ul:not(.checklist) > ul:not(.checklist) { margin-left: 1em; }
+.note-canvas ul:not(.checklist) ul:not(.checklist) { padding-left: 1.75em; }
 
 /* Keep ordinary typed lines at the editor's line height. */
 .note-canvas p:not(.lead), .note-canvas div, .note-canvas li { margin: 0 !important; line-height: inherit; }
