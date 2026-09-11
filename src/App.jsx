@@ -345,6 +345,13 @@ function caretIsAtEnd(range, block) {
   return remainder.toString() === ''
 }
 
+function caretIsAtStart(range, block) {
+  const preceding = range.cloneRange()
+  preceding.selectNodeContents(block)
+  preceding.setEnd(range.startContainer, range.startOffset)
+  return preceding.toString() === ''
+}
+
 function placeCaretAtStart(element) {
   const selection = window.getSelection()
   if (!selection) return
@@ -461,7 +468,38 @@ function NoteEditor({ note, updateNoteBody, deleteNote, onBack, mobileView, save
     if (event.key !== 'Enter') return
     const item = element.closest?.('ul:not(.checklist) > li')
     const list = item?.parentElement
-    if (!item || !list || item.textContent.trim()) return
+    if (!item || !list) return
+
+    const range = selection.getRangeAt(0)
+    if (item.textContent.trim() && caretIsAtStart(range, item)) {
+      event.preventDefault()
+      const parent = list.parentNode
+      const itemIndex = [...list.children].indexOf(item)
+      const followingItems = [...list.children].slice(itemIndex + 1)
+      const paragraph = document.createElement('p')
+
+      while (item.firstChild) paragraph.append(item.firstChild)
+
+      item.remove()
+      list.removeAttribute('data-auto-list')
+
+      if (list.children.length) {
+        parent.insertBefore(paragraph, list.nextSibling)
+      } else {
+        list.replaceWith(paragraph)
+      }
+      if (followingItems.length) {
+        const followingList = list.cloneNode(false)
+        followingItems.forEach(followingItem => followingList.append(followingItem))
+        parent.insertBefore(followingList, paragraph.nextSibling)
+      }
+      placeCaretAtStart(paragraph)
+      save()
+      rememberSelection()
+      return
+    }
+
+    if (item.textContent.trim()) return
 
     event.preventDefault()
     const nextItem = item.nextElementSibling
